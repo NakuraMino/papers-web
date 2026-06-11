@@ -3,11 +3,12 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "web/dist",
   "functions": {
-    "api/**": {
+    "api/index.mjs": {
       "includeFiles": "data/**"
     }
   },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
