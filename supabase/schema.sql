@@ -19,7 +19,18 @@ create table if not exists decisions (
 
 create index if not exists idx_decisions_seq on decisions (conference, seq);
 
+-- Per-conference keyword filters: papers whose title/keywords/abstract contain
+-- any of these terms are hidden from the swipe queue. (Run this block too if you
+-- created the database before filters existed.)
+create table if not exists filters (
+  conference text        not null,
+  term       text        not null,
+  created_at timestamptz not null default now(),
+  primary key (conference, term)
+);
+
 -- The app talks to Postgres only through the service-role key (server-side),
 -- which bypasses RLS. Enable RLS with no policies so the public anon key can
--- never read or write this table by accident.
+-- never read or write these tables by accident.
 alter table decisions enable row level security;
+alter table filters   enable row level security;

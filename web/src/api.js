@@ -54,4 +54,6 @@ export const api = {
   papers: (conf, status, q) =>
     j(`/api/${conf}/papers?status=${encodeURIComponent(status)}&q=${encodeURIComponent(q || '')}`),
   exportUrl: (conf) => `/api/${conf}/export.csv`,
+  filters: (conf) => j(`/api/${conf}/filters`),
+  setFilters: (conf, filters) => post(`/api/${conf}/filters`, { filters }),
 };

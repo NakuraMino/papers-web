@@ -136,6 +136,21 @@ the old local SQLite DB. Skip it if you have no prior swipes to keep.
 > Vercel's free tier is generous for a personal tool; the function cold-starts in
 > well under a second since the corpus is just JSON read into memory.
 
+## Hiding topics you don't care about
+
+Each conference has a list of **keyword filters** you can manage from the swipe
+view (**🚫 Filters**). Any paper whose title, keywords, or abstract contains one
+of your terms is hidden from the swipe queue and the **Undecided** list — so you
+never get shown e.g. agriculture-robot papers if that's not your thing. Add / edit /
+remove terms in real time (gated behind the edit password, like decisions); the
+queue updates immediately. Review what's hidden under the **🚫 Hidden** tab in the
+Liked view. Already-decided papers are never hidden.
+
+> Filters live in a `filters` table in Supabase. If you created your database
+> before this feature, run the `filters` block (and the `alter table filters …`
+> line) from [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor. Until
+> the table exists the app simply behaves as if there are no filters.
+
 ## Where your data lives
 
 - **`data/<conference>/papers.json`** — the scraped corpus (regenerable, committed).
@@ -144,6 +159,8 @@ the old local SQLite DB. Skip it if you have no prior swipes to keep.
   and `seq` fields per paper), which is what makes resume work. This is the only
   mutable state, and lives in Postgres so it persists on a stateless host (Vercel).
   Re-scraping never touches it.
+- **Supabase `filters` table** — your per-conference keyword filters (the terms
+  that hide papers from the swipe queue).
 - **Export**: the **⬇ Export CSV** button (or `GET /api/<conf>/export.csv`).
 
 ## Adding another conference (CVPR / CoRL / RSS / …)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { api } from './api.js';
 import { paperLinks } from './links.js';
+import FiltersModal from './FiltersModal.jsx';
 
 const SWIPE_PX = 120; // drag distance that commits a decision
 
@@ -11,6 +12,7 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const exitDir = useRef('right'); // direction the leaving card flies
 
   const load = useCallback(async () => {
@@ -79,7 +81,10 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [decide, undo, canEdit]);
 
-  const pct = stats && stats.total ? Math.round((stats.decided / stats.total) * 100) : 0;
+  // Progress is measured against the swipeable set (excludes keyword-hidden
+  // papers), so it reaches 100% exactly when the queue is empty.
+  const effective = stats ? stats.decided + stats.remaining : 0;
+  const pct = effective ? Math.round((stats.decided / effective) * 100) : 0;
 
   return (
     <div className="swipe">
@@ -88,9 +93,15 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${pct}%` }} />
           </div>
-          <div className="progress-text">
-            {stats.decided}/{stats.total} decided · {stats.remaining} left ·{' '}
-            <span className="like-count">♥ {stats.liked}</span>
+          <div className="progress-row">
+            <div className="progress-text">
+              {stats.decided}/{effective} decided · {stats.remaining} left
+              {stats.filtered ? ` · ${stats.filtered} hidden` : ''} ·{' '}
+              <span className="like-count">♥ {stats.liked}</span>
+            </div>
+            <button className="filters-btn" onClick={() => setShowFilters(true)} title="Hide papers by keyword">
+              🚫 Filters{stats.filtered ? ` (${stats.filtered})` : ''}
+            </button>
           </div>
         </div>
       )}
@@ -140,6 +151,16 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
         ) : (
           <div className="hint locked">🔒 View-only — unlock editing (top right) to swipe</div>
         ))}
+
+      {showFilters && (
+        <FiltersModal
+          conf={conf}
+          canEdit={canEdit}
+          onLocked={onLocked}
+          onClose={() => setShowFilters(false)}
+          onChanged={load}
+        />
+      )}
     </div>
   );
 }

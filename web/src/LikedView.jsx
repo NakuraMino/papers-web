@@ -7,6 +7,7 @@ const FILTERS = [
   { key: 'skip', label: '↑ Maybe' },
   { key: 'dislike', label: '✕ Declined' },
   { key: 'undecided', label: 'Undecided' },
+  { key: 'filtered', label: '🚫 Hidden' },
   { key: 'all', label: 'All' },
 ];
 
@@ -154,8 +155,8 @@ export default function LikedView({ conf, canEdit, onLocked }) {
     </section>
   );
 
-  // group decided lists into Not read / Read; leave Undecided ungrouped
-  const grouped = status !== 'undecided';
+  // group decided lists into Not read / Read; leave Undecided + Hidden ungrouped
+  const grouped = status !== 'undecided' && status !== 'filtered';
   const unread = papers.filter((p) => !p.read);
   const read = papers.filter((p) => p.read);
 
@@ -174,6 +175,7 @@ export default function LikedView({ conf, canEdit, onLocked }) {
               {f.key === 'skip' && ` (${count('skipped')})`}
               {f.key === 'dislike' && ` (${count('disliked')})`}
               {f.key === 'undecided' && ` (${count('remaining')})`}
+              {f.key === 'filtered' && ` (${count('filtered')})`}
               {f.key === 'all' && stats && ` (${stats.total})`}
             </button>
           ))}

@@ -120,8 +120,34 @@ body {
 .progress-wrap { width: 100%; margin-bottom: 14px; }
 .progress-bar { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; }
 .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--like)); transition: width 0.3s ease; }
-.progress-text { margin-top: 6px; font-size: 13px; color: var(--muted); text-align: center; }
+.progress-text { font-size: 13px; color: var(--muted); }
 .like-count { color: var(--like); font-weight: 600; }
+.progress-row { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.filters-btn {
+  flex: 0 0 auto;
+  background: var(--surface); color: var(--on-surface); border: 1px solid var(--border);
+  padding: 5px 11px; border-radius: 999px; cursor: pointer; font-size: 12px; white-space: nowrap;
+}
+.filters-btn:hover { border-color: var(--on-surface); color: var(--text); }
+
+/* filters modal */
+.filters-modal { max-width: 440px; }
+.filter-list { list-style: none; margin: 2px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.filter-row { display: flex; align-items: center; gap: 8px; }
+.filter-input {
+  flex: 1; min-width: 0;
+  background: var(--input-bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 11px; font-size: 14px;
+}
+.filter-input:focus { outline: none; border-color: var(--accent); }
+.filter-input:disabled { opacity: 0.8; }
+.filter-remove {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 13px;
+}
+.filter-remove:hover { color: var(--nope); border-color: var(--nope); }
+.filter-add { display: flex; gap: 8px; align-items: center; }
+.filter-add .modal-input { flex: 1; }
 
 /* ---- stage: responsive bounded height instead of a magic fixed height ---- */
 .card-stage {

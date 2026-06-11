@@ -19,7 +19,7 @@ import { existsSync } from 'node:fs';
 import {
   conferenceCatalog, getConference, stats, nextUndecided,
   recordDecision, undoLast, setDecisionOrClear, setRead, listPapers,
-  allDecisionsForExport, loadedConferences,
+  allDecisionsForExport, loadedConferences, getFilters, setFilters,
 } from './db.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -133,6 +133,18 @@ confRouter.post('/read', requireEdit, wrap(async (req, res) => {
   const ok = await setRead(conf, paperId, read);
   if (!ok) return res.status(404).json({ error: 'paper is not decided (no decision to mark read)' });
   res.json({ ok: true });
+}));
+
+confRouter.get('/filters', wrap(async (req, res) => {
+  res.json({ filters: await getFilters(req.params.conf) });
+}));
+
+confRouter.post('/filters', requireEdit, wrap(async (req, res) => {
+  const { conf } = req.params;
+  const { filters } = req.body || {};
+  if (!Array.isArray(filters)) return res.status(400).json({ error: 'filters (array of strings) required' });
+  const saved = await setFilters(conf, filters);
+  res.json({ filters: saved, stats: await stats(conf) });
 }));
 
 confRouter.get('/papers', wrap(async (req, res) => {
