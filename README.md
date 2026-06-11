@@ -98,6 +98,12 @@ swipe decisions, **Vercel** (free) serves the app. Total cost: $0. The Express A
 runs as a Vercel serverless function ([`api/[...slug].mjs`](api/[...slug].mjs)); the
 papers corpus is bundled into the function as read-only JSON.
 
+**Public read, password to edit.** Anyone with the URL can browse, search, and
+export. Recording / changing / undoing swipe decisions requires an edit password
+(`ADMIN_CODE`), typed once into the app's **Unlock to edit** box (top right) and
+remembered on that device. If `ADMIN_CODE` is unset, editing is locked for everyone
+— so the site never ships world-writable by accident.
+
 ### 1. Supabase
 
 1. Create a free project at https://supabase.com.
@@ -109,7 +115,7 @@ papers corpus is bundled into the function as read-only JSON.
 ### 2. Connect locally + migrate your existing swipes
 
 ```bash
-cp .env.local.example .env.local     # then paste your SUPABASE_URL + SERVICE_ROLE_KEY
+cp .env.local.example .env.local     # paste SUPABASE_URL + SERVICE_ROLE_KEY + pick an ADMIN_CODE
 npm run migrate                      # pushes data/decisions-export.json into Supabase
 npm start                            # http://localhost:8080 — verify your picks are there
 ```
@@ -121,9 +127,10 @@ the old local SQLite DB. Skip it if you have no prior swipes to keep.
 
 1. Push this repo to GitHub (see below).
 2. Import it at https://vercel.com → **New Project**.
-3. Add the two env vars (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) under
-   **Settings → Environment Variables**. Leave build settings as detected —
-   [`vercel.json`](vercel.json) already sets the build command, output dir, and routing.
+3. Add three env vars under **Settings → Environment Variables**:
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ADMIN_CODE` (your edit password).
+   Leave build settings as detected — [`vercel.json`](vercel.json) already sets the
+   build command, output dir, and routing.
 4. **Deploy**, then open your `your-app.vercel.app` URL.
 
 > Vercel's free tier is generous for a personal tool; the function cold-starts in

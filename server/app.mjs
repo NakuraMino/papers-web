@@ -26,7 +26,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = join(HERE, '..', 'web', 'dist');
 const VALID = new Set(['like', 'dislike', 'skip']);
 
+// Reads are public. Writes (recording/clearing decisions, undo, mark-read) require
+// the edit password, supplied as the `x-edit-code` header. If ADMIN_CODE is unset,
+// editing is locked for everyone — safe by default, so the site never ships
+// world-writable by accident. Set ADMIN_CODE locally (.env.local) and on Vercel.
+const ADMIN_CODE = process.env.ADMIN_CODE || '';
+const EDIT_ENABLED = ADMIN_CODE.length > 0;
+
 console.log(`[db] conferences loaded: ${loadedConferences().join(', ') || '(none — run npm run scrape)'}`);
+console.log(`[auth] editing ${EDIT_ENABLED ? 'requires the edit password (ADMIN_CODE)' : 'is LOCKED — ADMIN_CODE not set'}`);
 
 const app = express();
 
@@ -40,6 +48,24 @@ app.use((req, res, next) => {
 
 // Wrap an async handler so thrown/rejected errors reach the error middleware.
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// Gate for write routes. 401 if editing is disabled or the code doesn't match.
+const requireEdit = (req, res, next) => {
+  if (EDIT_ENABLED && req.get('x-edit-code') === ADMIN_CODE) return next();
+  return res.status(401).json({
+    error: EDIT_ENABLED ? 'editing locked — unlock with the edit password' : 'editing is disabled on this server',
+  });
+};
+
+// Lets the UI know whether to show the unlock control at all.
+app.get('/api/config', (_req, res) => res.json({ editEnabled: EDIT_ENABLED }));
+
+// Validate a candidate edit password (so the UI can confirm before storing it).
+app.post('/api/unlock', wrap(async (req, res) => {
+  const { code } = req.body || {};
+  if (EDIT_ENABLED && code && code === ADMIN_CODE) return res.json({ ok: true });
+  res.status(401).json({ error: EDIT_ENABLED ? 'incorrect edit password' : 'editing is disabled on this server' });
+}));
 
 app.get('/api/conferences', wrap(async (_req, res) => {
   res.json({ conferences: await conferenceCatalog() });
@@ -61,7 +87,7 @@ confRouter.get('/next', wrap(async (req, res) => {
   res.json({ paper: await nextUndecided(conf), stats: await stats(conf) });
 }));
 
-confRouter.post('/decision', wrap(async (req, res) => {
+confRouter.post('/decision', requireEdit, wrap(async (req, res) => {
   const { conf } = req.params;
   const { paperId, decision } = req.body || {};
   if (!paperId || !VALID.has(decision)) {
@@ -76,13 +102,13 @@ confRouter.post('/decision', wrap(async (req, res) => {
   res.json({ paper: await nextUndecided(conf), stats: await stats(conf) });
 }));
 
-confRouter.post('/undo', wrap(async (req, res) => {
+confRouter.post('/undo', requireEdit, wrap(async (req, res) => {
   const { conf } = req.params;
   const paper = await undoLast(conf);
   res.json({ undone: paper, paper: await nextUndecided(conf), stats: await stats(conf) });
 }));
 
-confRouter.post('/set', wrap(async (req, res) => {
+confRouter.post('/set', requireEdit, wrap(async (req, res) => {
   const { conf } = req.params;
   const { paperId, decision } = req.body || {};
   if (!paperId) return res.status(400).json({ error: 'paperId required' });
@@ -98,7 +124,7 @@ confRouter.post('/set', wrap(async (req, res) => {
   res.json({ stats: await stats(conf) });
 }));
 
-confRouter.post('/read', wrap(async (req, res) => {
+confRouter.post('/read', requireEdit, wrap(async (req, res) => {
   const { conf } = req.params;
   const { paperId, read } = req.body || {};
   if (!paperId || typeof read !== 'boolean') {

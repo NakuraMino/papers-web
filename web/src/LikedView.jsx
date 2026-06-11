@@ -10,7 +10,7 @@ const FILTERS = [
   { key: 'all', label: 'All' },
 ];
 
-export default function LikedView({ conf }) {
+export default function LikedView({ conf, canEdit, onLocked }) {
   const [status, setStatus] = useState('like');
   const [q, setQ] = useState('');
   const [papers, setPapers] = useState([]);
@@ -45,6 +45,7 @@ export default function LikedView({ conf }) {
       load();
     } catch (e) {
       setError(e.message);
+      if (e.status === 401) onLocked?.();
     }
   };
 
@@ -55,6 +56,7 @@ export default function LikedView({ conf }) {
       await api.setRead(conf, paperId, read);
     } catch (e) {
       setError(e.message);
+      if (e.status === 401) onLocked?.();
       load();
     }
   };
@@ -78,7 +80,7 @@ export default function LikedView({ conf }) {
             <span className="paper-authors">{p.authors}</span>
           </div>
           <div className="paper-head-side">
-            {p.decision && (
+            {p.decision && canEdit && (
               <button
                 className={`read-toggle${p.read ? ' read' : ''}`}
                 title={p.read ? 'Mark as not read' : 'Mark as read'}
@@ -90,6 +92,7 @@ export default function LikedView({ conf }) {
                 {p.read ? '✓ Read' : 'Mark read'}
               </button>
             )}
+            {p.decision && p.read && !canEdit && <span className="read-badge">✓ Read</span>}
             {p.decision && <span className={`badge ${p.decision}`}>{p.decision}</span>}
             <span className="caret">{open ? '▾' : '▸'}</span>
           </div>
@@ -108,20 +111,22 @@ export default function LikedView({ conf }) {
             )}
             <p className="paper-abstract">{p.abstract || '(no abstract)'}</p>
             <div className="paper-foot">
-              <div className="set-buttons">
-                <button className={btnCls(p, 'like')} onClick={() => change(p.id, 'like')}>
-                  ♥ Like
-                </button>
-                <button className={btnCls(p, 'skip')} onClick={() => change(p.id, 'skip')}>
-                  ↑ Maybe
-                </button>
-                <button className={btnCls(p, 'dislike')} onClick={() => change(p.id, 'dislike')}>
-                  ✕ Decline
-                </button>
-                <button className="set-btn" onClick={() => change(p.id, null)}>
-                  ↩ Clear
-                </button>
-              </div>
+              {canEdit && (
+                <div className="set-buttons">
+                  <button className={btnCls(p, 'like')} onClick={() => change(p.id, 'like')}>
+                    ♥ Like
+                  </button>
+                  <button className={btnCls(p, 'skip')} onClick={() => change(p.id, 'skip')}>
+                    ↑ Maybe
+                  </button>
+                  <button className={btnCls(p, 'dislike')} onClick={() => change(p.id, 'dislike')}>
+                    ✕ Decline
+                  </button>
+                  <button className="set-btn" onClick={() => change(p.id, null)}>
+                    ↩ Clear
+                  </button>
+                </div>
+              )}
               <div className="paper-links">
                 {paperLinks(p).map((l) => (
                   <a key={l.kind} className={`paper-link ${l.kind}`} href={l.href} target="_blank" rel="noreferrer">

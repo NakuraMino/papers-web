@@ -5,7 +5,7 @@ import { paperLinks } from './links.js';
 
 const SWIPE_PX = 120; // drag distance that commits a decision
 
-export default function SwipeView({ conf }) {
+export default function SwipeView({ conf, canEdit, onLocked }) {
   const [paper, setPaper] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ export default function SwipeView({ conf }) {
 
   const decide = useCallback(
     async (decision) => {
-      if (!paper || busy) return;
+      if (!paper || busy || !canEdit) return;
       exitDir.current = decision === 'like' ? 'right' : decision === 'dislike' ? 'left' : 'up';
       setBusy(true);
       try {
@@ -42,15 +42,16 @@ export default function SwipeView({ conf }) {
         setStats(stats);
       } catch (e) {
         setError(e.message);
+        if (e.status === 401) onLocked?.();
       } finally {
         setBusy(false);
       }
     },
-    [paper, busy, conf],
+    [paper, busy, conf, canEdit, onLocked],
   );
 
   const undo = useCallback(async () => {
-    if (busy) return;
+    if (busy || !canEdit) return;
     setBusy(true);
     try {
       const { paper, stats } = await api.undo(conf);
@@ -58,13 +59,15 @@ export default function SwipeView({ conf }) {
       setStats(stats);
     } catch (e) {
       setError(e.message);
+      if (e.status === 401) onLocked?.();
     } finally {
       setBusy(false);
     }
-  }, [busy, conf]);
+  }, [busy, conf, canEdit, onLocked]);
 
-  // keyboard shortcuts
+  // keyboard shortcuts (only when unlocked for editing)
   useEffect(() => {
+    if (!canEdit) return;
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight') decide('like');
@@ -74,7 +77,7 @@ export default function SwipeView({ conf }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [decide, undo]);
+  }, [decide, undo, canEdit]);
 
   const pct = stats && stats.total ? Math.round((stats.decided / stats.total) * 100) : 0;
 
@@ -99,20 +102,22 @@ export default function SwipeView({ conf }) {
           {loading ? (
             <div className="card-placeholder">Loading…</div>
           ) : paper ? (
-            <Card key={paper.id} paper={paper} onDecide={decide} disabled={busy} exitDir={exitDir} />
+            <Card key={paper.id} paper={paper} onDecide={decide} disabled={busy || !canEdit} exitDir={exitDir} />
           ) : (
             <div className="empty done" key="done">
               <h2>🎉 All done</h2>
               <p>You’ve triaged every paper in this conference.</p>
-              <button className="btn ghost" onClick={undo}>
-                ↩ Undo last
-              </button>
+              {canEdit && (
+                <button className="btn ghost" onClick={undo}>
+                  ↩ Undo last
+                </button>
+              )}
             </div>
           )}
         </AnimatePresence>
       </div>
 
-      {paper && (
+      {paper && canEdit && (
         <div className="controls">
           <button className="btn nope" onClick={() => decide('dislike')} disabled={busy} title="Decline (←)">
             ✕
@@ -129,7 +134,12 @@ export default function SwipeView({ conf }) {
         </div>
       )}
 
-      <div className="hint">← decline · → accept · ↑ maybe · z undo · or drag the card</div>
+      {paper &&
+        (canEdit ? (
+          <div className="hint">← decline · → accept · ↑ maybe · z undo · or drag the card</div>
+        ) : (
+          <div className="hint locked">🔒 View-only — unlock editing (top right) to swipe</div>
+        ))}
     </div>
   );
 }

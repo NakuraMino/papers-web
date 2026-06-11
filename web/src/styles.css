@@ -315,3 +315,46 @@ body {
   .topbar { flex-wrap: wrap; gap: 10px; }
   .paper-authors { max-width: 60vw; }
 }
+
+/* ---- editing lock (public read-only; password to edit) ---- */
+.lock-area { display: flex; align-items: center; }
+.lock-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.15); background: var(--bg2); color: #c7ccf0;
+}
+button.lock-chip:hover { border-color: rgba(255,255,255,0.35); color: #e9ecff; }
+.lock-chip.locked { background: rgba(244,180,0,0.14); color: var(--skip); border-color: transparent; }
+.lock-chip.unlocked { background: rgba(46,204,113,0.18); color: var(--like); border-color: transparent; }
+.lock-chip.view-only { cursor: default; color: var(--muted); }
+
+.hint.locked { color: var(--skip); }
+.read-badge { font-size: 11px; color: var(--like); font-weight: 600; }
+
+/* ---- unlock modal ---- */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(8,10,24,0.62); backdrop-filter: blur(3px);
+  display: grid; place-items: center; padding: 18px;
+}
+.modal {
+  width: 100%; max-width: 360px;
+  background: var(--bg2); color: #e9ecff;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 16px;
+  padding: 22px; box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.modal h3 { margin: 0; font-size: 18px; }
+.modal-sub { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.modal-input {
+  background: var(--bg); color: #e9ecff; border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px; padding: 11px 14px; font-size: 15px;
+}
+.modal-input:focus { outline: none; border-color: var(--accent); }
+.modal-err { font-size: 13px; color: var(--nope); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.btn.small {
+  width: auto; height: auto; border-radius: 10px; padding: 9px 18px;
+  font-size: 14px; font-weight: 600; background: var(--accent);
+}

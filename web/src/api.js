@@ -1,4 +1,24 @@
 // Thin API client. All paper routes are scoped to a conference id.
+//
+// Reads are public. Writes carry an `x-edit-code` header with the edit password,
+// which the user unlocks once (stored in localStorage). See `auth` below.
+const LS_CODE = 'paperswiper.editcode';
+let editCode = localStorage.getItem(LS_CODE) || '';
+
+export const auth = {
+  get code() {
+    return editCode;
+  },
+  has() {
+    return !!editCode;
+  },
+  set(code) {
+    editCode = code || '';
+    if (editCode) localStorage.setItem(LS_CODE, editCode);
+    else localStorage.removeItem(LS_CODE);
+  },
+};
+
 const j = async (url, opts) => {
   const res = await fetch(url, opts);
   if (!res.ok) {
@@ -6,15 +26,24 @@ const j = async (url, opts) => {
     try {
       msg = (await res.json()).error || msg;
     } catch {}
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status; // callers check 401 to re-lock the editing UI
+    throw err;
   }
   return res.json();
 };
 
-const post = (url, body) =>
-  j(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const post = (url, body, { code = editCode } = {}) =>
+  j(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(code ? { 'x-edit-code': code } : {}) },
+    body: JSON.stringify(body),
+  });
 
 export const api = {
+  config: () => j('/api/config'),
+  // Validate a candidate password (without storing it); resolves on success, throws 401 otherwise.
+  unlock: (code) => post('/api/unlock', { code }, { code }),
   conferences: () => j('/api/conferences'),
   next: (conf) => j(`/api/${conf}/next`),
   stats: (conf) => j(`/api/${conf}/stats`),

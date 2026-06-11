@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, auth } from './api.js';
 import SwipeView from './SwipeView.jsx';
 import LikedView from './LikedView.jsx';
 
@@ -11,6 +11,12 @@ export default function App() {
   const [conf, setConf] = useState(localStorage.getItem(LS_CONF) || '');
   const [tab, setTab] = useState(localStorage.getItem(LS_TAB) || 'swipe');
   const [error, setError] = useState('');
+
+  // Editing is password-gated. editEnabled = does the server require a password
+  // at all; canEdit = are we currently unlocked with a valid one.
+  const [editEnabled, setEditEnabled] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(false);
 
   useEffect(() => {
     api
@@ -25,12 +31,43 @@ export default function App() {
       .catch((e) => setError(e.message));
   }, []);
 
+  // Discover whether editing is gated, and re-validate any stored password
+  // (handles a rotated/forgotten code by quietly re-locking).
+  useEffect(() => {
+    api
+      .config()
+      .then(async ({ editEnabled }) => {
+        setEditEnabled(editEnabled);
+        if (editEnabled && auth.has()) {
+          try {
+            await api.unlock(auth.code);
+            setCanEdit(true);
+          } catch {
+            auth.set('');
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (conf) localStorage.setItem(LS_CONF, conf);
   }, [conf]);
   useEffect(() => localStorage.setItem(LS_TAB, tab), [tab]);
 
   const current = confs?.find((c) => c.id === conf);
+
+  // Called by the views if a write unexpectedly 401s (e.g. code rotated server-side).
+  const onLocked = () => {
+    auth.set('');
+    setCanEdit(false);
+    setShowUnlock(true);
+  };
+
+  const lock = () => {
+    auth.set('');
+    setCanEdit(false);
+  };
 
   return (
     <div className="app">
@@ -54,6 +91,22 @@ export default function App() {
             Liked{current ? ` (${current.stats.liked})` : ''}
           </button>
         </nav>
+
+        <div className="lock-area">
+          {!editEnabled ? (
+            <span className="lock-chip view-only" title="This site is read-only">
+              👁 View-only
+            </span>
+          ) : canEdit ? (
+            <button className="lock-chip unlocked" onClick={lock} title="Click to lock editing on this device">
+              🔓 Editing
+            </button>
+          ) : (
+            <button className="lock-chip locked" onClick={() => setShowUnlock(true)} title="Enter the edit password">
+              🔒 Unlock to edit
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="content">
@@ -68,9 +121,67 @@ export default function App() {
             </p>
           </div>
         )}
-        {conf && tab === 'swipe' && <SwipeView conf={conf} />}
-        {conf && tab === 'liked' && <LikedView conf={conf} />}
+        {conf && tab === 'swipe' && <SwipeView conf={conf} canEdit={canEdit} onLocked={onLocked} />}
+        {conf && tab === 'liked' && <LikedView conf={conf} canEdit={canEdit} onLocked={onLocked} />}
       </main>
+
+      {showUnlock && (
+        <UnlockModal
+          onClose={() => setShowUnlock(false)}
+          onUnlocked={() => {
+            setCanEdit(true);
+            setShowUnlock(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function UnlockModal({ onClose, onUnlocked }) {
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!code || busy) return;
+    setBusy(true);
+    setErr('');
+    try {
+      await api.unlock(code);
+      auth.set(code);
+      onUnlocked();
+    } catch (e2) {
+      setErr(e2.message || 'Incorrect password');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <h3>Unlock editing</h3>
+        <p className="modal-sub">Enter the edit password to record, change, or undo decisions on this device.</p>
+        <input
+          className="modal-input"
+          type="password"
+          autoFocus
+          placeholder="Edit password"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+        {err && <div className="modal-err">{err}</div>}
+        <div className="modal-actions">
+          <button type="button" className="btn ghost small" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn small" disabled={busy || !code}>
+            {busy ? 'Checking…' : 'Unlock'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
