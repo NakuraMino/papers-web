@@ -9,26 +9,26 @@
   --skip: #f4b400;
   --accent: #7c8cff;
 
-  --page-bg: radial-gradient(1200px 700px at 50% -10%, #1a1f3a 0%, #0a0c14 62%);
-  --text: #e9ecff;
-  --muted: #8a90b5;
-  --surface: #1a1f3d;
-  --surface-2: rgba(255, 255, 255, 0.045);
-  --surface-2-hover: rgba(255, 255, 255, 0.03);
-  --border: rgba(255, 255, 255, 0.15);
+  --page-bg: radial-gradient(1200px 700px at 50% -10%, #1d1d1f 0%, #0b0b0c 60%);
+  --text: #ededee;
+  --muted: #9a9aa1;
+  --surface: #1c1c1e;
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --surface-2-hover: rgba(255, 255, 255, 0.035);
+  --border: rgba(255, 255, 255, 0.14);
   --border-soft: rgba(255, 255, 255, 0.08);
-  --on-surface: #c7ccf0;
-  --input-bg: #10132a;
+  --on-surface: #cacace;
+  --input-bg: #161618;
 
-  --card: #1b1f30;
-  --card-ink: #eef1ff;
-  --card-abstract-ink: #c6cbea;
+  --card: #1a1a1c;
+  --card-ink: #f1f1f3;
+  --card-abstract-ink: #c9c9ce;
   --card-divider: rgba(255, 255, 255, 0.12);
-  --chip: rgba(255, 255, 255, 0.1);
-  --chip-ink: #c7ccf0;
+  --chip: rgba(255, 255, 255, 0.09);
+  --chip-ink: #cacace;
 
-  --modal-backdrop: rgba(4, 5, 12, 0.66);
-  --shadow: rgba(0, 0, 0, 0.45);
+  --modal-backdrop: rgba(0, 0, 0, 0.66);
+  --shadow: rgba(0, 0, 0, 0.5);
 }
 
 :root[data-theme='light'] {
@@ -269,7 +269,7 @@ body {
 .btn.nope { background: var(--nope); }
 .btn.like { background: var(--like); }
 .btn.skip { width: 48px; height: 48px; font-size: 20px; background: var(--skip); }
-.btn.undo { width: 48px; height: 48px; font-size: 18px; background: #5a6080; }
+.btn.undo { width: 48px; height: 48px; font-size: 18px; background: #565659; }
 
 .hint { margin-top: 16px; font-size: 12px; color: var(--muted); text-align: center; }
 .btn.ghost { width: auto; height: auto; border-radius: 10px; padding: 8px 14px; font-size: 14px; background: var(--surface); border: 1px solid var(--border); color: var(--text); }
