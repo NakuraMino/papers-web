@@ -95,7 +95,7 @@ Open **http://localhost:5173** while developing.
 
 Hosted the same way as the world-cup pool: **Supabase** (free Postgres) holds your
 swipe decisions, **Vercel** (free) serves the app. Total cost: $0. The Express API
-runs as a Vercel serverless function ([`api/[...slug].mjs`](api/[...slug].mjs)); the
+runs as a Vercel serverless function ([`api/index.mjs`](api/index.mjs)); the
 papers corpus is bundled into the function as read-only JSON.
 
 **Public read, password to edit.** Anyone with the URL can browse, search, and
@@ -179,7 +179,7 @@ server/supabase.mjs         Supabase client (from env vars)
 server/db.mjs               in-memory papers corpus + Supabase-backed decisions
 server/app.mjs              Express API + (locally) serves the built web app
 server/index.mjs            local entry: `npm start` listens on a port
-api/[...slug].mjs           Vercel serverless entry (mounts the Express app)
+api/index.mjs               Vercel serverless entry (mounts the Express app)
 supabase/schema.sql         the `decisions` table (run once in Supabase)
 scripts/migrate-decisions.mjs  one-time push of existing swipes into Supabase
 vercel.json                 Vercel build + routing config
