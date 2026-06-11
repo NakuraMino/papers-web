@@ -18,6 +18,14 @@ export default function App() {
   const [canEdit, setCanEdit] = useState(false);
   const [showUnlock, setShowUnlock] = useState(false);
 
+  // Day/night theme. The initial value is applied pre-paint by an inline script
+  // in index.html (no flash); here we just track and persist toggles.
+  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'dark');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('paperswiper.theme', theme);
+  }, [theme]);
+
   useEffect(() => {
     api
       .conferences()
@@ -93,6 +101,14 @@ export default function App() {
         </nav>
 
         <div className="lock-area">
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
+            title={theme === 'light' ? 'Switch to night mode' : 'Switch to day mode'}
+            aria-label="Toggle day / night theme"
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
           {!editEnabled ? (
             <span className="lock-chip view-only" title="This site is read-only">
               👁 View-only
