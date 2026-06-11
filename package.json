@@ -1,0 +1,25 @@
+{
+  "name": "paper-swiper",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tinder-style triage tool for conference papers (ICRA, CVPR, CoRL, RSS, ...)",
+  "scripts": {
+    "scrape": "node scraper/scrape.mjs",
+    "enrich": "node scraper/enrich-pdfs.mjs",
+    "build:web": "npm --prefix web install && npm --prefix web run build",
+    "dev": "concurrently -k -n server,web -c blue,green \"node --env-file=.env.local server/index.mjs\" \"npm --prefix web run dev\"",
+    "start": "node --env-file=.env.local server/index.mjs",
+    "migrate": "node --env-file=.env.local scripts/migrate-decisions.mjs",
+    "setup": "npm install && npm run build:web && npm run scrape"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "cheerio": "^1.0.0",
+    "express": "^4.21.2",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

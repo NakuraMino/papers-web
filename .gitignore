@@ -1,0 +1,15 @@
+node_modules/
+web/node_modules/
+web/dist/
+data/papers.db
+data/papers.db-*
+data/decisions-export.json
+scraper/_page*.html
+*.log
+.DS_Store
+
+# secrets + deploy
+.env
+.env.local
+.env*.local
+.vercel

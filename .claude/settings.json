@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:proceedings.mlr.press)",
+      "WebFetch(domain:api2.openreview.net)",
+      "PowerShell(wsl -e bash -lc 'export PATH=\"$HOME/.nvm/versions/node/v20.20.2/bin:$PATH\"; cd /home/nakuram/Software/papers_web; node scraper/_probe_sources.mjs')",
+      "WebFetch(domain:openaccess.thecvf.com)",
+      "Read(//home/nakuram/Software/papers_web/**)",
+      "Read(///wsl.localhost/Ubuntu/home/nakuram/Software/papers_web/**)"
+    ],
+    "additionalDirectories": [
+      "\\home\\nakuram\\Software\\papers_web\\supabase",
+      "\\\\wsl.localhost\\Ubuntu\\home\\nakuram\\Software\\papers_web\\supabase"
+    ]
+  }
+}
