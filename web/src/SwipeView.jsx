@@ -5,23 +5,42 @@ import { paperLinks } from './links.js';
 import FiltersModal from './FiltersModal.jsx';
 
 const SWIPE_PX = 120; // drag distance that commits a decision
+const BATCH = 8; // papers pulled per server round-trip
+const REFILL_AT = 3; // top up the buffer once it drops to this many cards
 
 export default function SwipeView({ conf, canEdit, onLocked }) {
-  const [paper, setPaper] = useState(null);
+  // Swipes feel instant because we keep a small buffer of upcoming papers on the
+  // client (`queue`, indexed by `pos`) and write each decision in the background
+  // instead of blocking the next card on a round-trip. The buffer refills before
+  // it runs dry. Decisions are serialized through `writeChain` so undo/refill see
+  // a consistent order, and stats update optimistically for instant progress.
+  const [queue, setQueue] = useState([]);
+  const [pos, setPos] = useState(0);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const exitDir = useRef('right'); // direction the leaving card flies
 
-  const load = useCallback(async () => {
+  const exitDir = useRef('right'); // direction the leaving card flies
+  const queueRef = useRef([]); // mirror of queue, for synchronous reads in decide()
+  const posRef = useRef(0); // mirror of pos, so rapid swipes never reuse a card
+  const seenIds = useRef(new Set()); // every id ever buffered — dedupes refills
+  const writeChain = useRef(Promise.resolve()); // serializes background decision writes
+  const refilling = useRef(false);
+
+  const reload = useCallback(async () => {
     setLoading(true);
     setError('');
+    writeChain.current = Promise.resolve();
+    refilling.current = false;
     try {
-      const { paper, stats } = await api.next(conf);
-      setPaper(paper);
-      setStats(stats);
+      const { papers, stats: s } = await api.queue(conf, BATCH);
+      seenIds.current = new Set(papers.map((p) => p.id));
+      queueRef.current = papers;
+      posRef.current = 0;
+      setQueue(papers);
+      setPos(0);
+      setStats(s);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -30,42 +49,81 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
   }, [conf]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    reload();
+  }, [reload]);
+
+  // Refill the buffer when it gets low. We wait for pending writes to land first,
+  // so the server's "next N" already excludes everything we've decided.
+  const refill = useCallback(async () => {
+    if (refilling.current) return;
+    refilling.current = true;
+    try {
+      await writeChain.current;
+      const { papers } = await api.queue(conf, BATCH);
+      const add = papers.filter((p) => !seenIds.current.has(p.id));
+      if (add.length) {
+        add.forEach((p) => seenIds.current.add(p.id));
+        queueRef.current = queueRef.current.concat(add);
+        setQueue(queueRef.current);
+      }
+    } catch {
+      // non-fatal — the next swipe will trigger another refill
+    } finally {
+      refilling.current = false;
+    }
+  }, [conf]);
+
+  useEffect(() => {
+    if (!loading && queue.length - pos <= REFILL_AT) refill();
+  }, [queue.length, pos, loading, refill]);
 
   const decide = useCallback(
-    async (decision) => {
-      if (!paper || busy || !canEdit) return;
+    (decision) => {
+      if (!canEdit) return;
+      const idx = posRef.current;
+      const current = queueRef.current[idx];
+      if (!current) return;
       exitDir.current = decision === 'like' ? 'right' : decision === 'dislike' ? 'left' : 'up';
-      setBusy(true);
-      try {
-        const { paper: next, stats } = await api.decide(conf, paper.id, decision);
-        setPaper(next);
-        setStats(stats);
-      } catch (e) {
-        setError(e.message);
-        if (e.status === 401) onLocked?.();
-      } finally {
-        setBusy(false);
-      }
+
+      // 1) advance the UI immediately from the local buffer...
+      posRef.current = idx + 1;
+      setPos(idx + 1);
+      setStats(
+        (s) =>
+          s && {
+            ...s,
+            decided: s.decided + 1,
+            remaining: Math.max(0, s.remaining - 1),
+            liked: s.liked + (decision === 'like' ? 1 : 0),
+            disliked: s.disliked + (decision === 'dislike' ? 1 : 0),
+            skipped: s.skipped + (decision === 'skip' ? 1 : 0),
+          },
+      );
+
+      // 2) ...and persist the decision in the background, in swipe order.
+      writeChain.current = writeChain.current
+        .then(() => api.decide(conf, current.id, decision))
+        .catch((e) => {
+          setError(e.status === 401 ? 'Editing locked — unlock to keep swiping.' : e.message || 'Could not save your swipe.');
+          if (e.status === 401) onLocked?.();
+          reload(); // a failed write means our optimistic advance was wrong — resync
+        });
     },
-    [paper, busy, conf, canEdit, onLocked],
+    [canEdit, conf, onLocked, reload],
   );
 
   const undo = useCallback(async () => {
-    if (busy || !canEdit) return;
-    setBusy(true);
+    if (!canEdit) return;
+    setError('');
     try {
-      const { paper, stats } = await api.undo(conf);
-      setPaper(paper);
-      setStats(stats);
+      await writeChain.current; // make sure the latest decision is recorded before reverting it
+      await api.undo(conf);
+      await reload(); // rebuild the buffer from the (now reverted) front
     } catch (e) {
       setError(e.message);
       if (e.status === 401) onLocked?.();
-    } finally {
-      setBusy(false);
     }
-  }, [busy, conf, canEdit, onLocked]);
+  }, [canEdit, conf, onLocked, reload]);
 
   // keyboard shortcuts (only when unlocked for editing)
   useEffect(() => {
@@ -85,6 +143,7 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
   // papers), so it reaches 100% exactly when the queue is empty.
   const effective = stats ? stats.decided + stats.remaining : 0;
   const pct = effective ? Math.round((stats.decided / effective) * 100) : 0;
+  const current = queue[pos] || null;
 
   return (
     <div className="swipe">
@@ -112,8 +171,13 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
         <AnimatePresence mode="popLayout" custom={exitDir}>
           {loading ? (
             <div className="card-placeholder">Loading…</div>
-          ) : paper ? (
-            <Card key={paper.id} paper={paper} onDecide={decide} disabled={busy || !canEdit} exitDir={exitDir} />
+          ) : current ? (
+            <Card key={current.id} paper={current} onDecide={decide} disabled={!canEdit} exitDir={exitDir} />
+          ) : stats && stats.remaining > 0 ? (
+            // buffer momentarily empty while a refill catches up
+            <div className="card-placeholder" key="catchup">
+              Loading…
+            </div>
           ) : (
             <div className="empty done" key="done">
               <h2>🎉 All done</h2>
@@ -128,24 +192,24 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
         </AnimatePresence>
       </div>
 
-      {paper && canEdit && (
+      {current && canEdit && (
         <div className="controls">
-          <button className="btn nope" onClick={() => decide('dislike')} disabled={busy} title="Decline (←)">
+          <button className="btn nope" onClick={() => decide('dislike')} title="Decline (←)">
             ✕
           </button>
-          <button className="btn skip" onClick={() => decide('skip')} disabled={busy} title="Maybe / skip (↑)">
+          <button className="btn skip" onClick={() => decide('skip')} title="Maybe / skip (↑)">
             ↑
           </button>
-          <button className="btn undo" onClick={undo} disabled={busy} title="Undo (z)">
+          <button className="btn undo" onClick={undo} title="Undo (z)">
             ↩
           </button>
-          <button className="btn like" onClick={() => decide('like')} disabled={busy} title="Accept (→)">
+          <button className="btn like" onClick={() => decide('like')} title="Accept (→)">
             ♥
           </button>
         </div>
       )}
 
-      {paper &&
+      {current &&
         (canEdit ? (
           <div className="hint">← decline · → accept · ↑ maybe · z undo · or drag the card</div>
         ) : (
@@ -158,7 +222,7 @@ export default function SwipeView({ conf, canEdit, onLocked }) {
           canEdit={canEdit}
           onLocked={onLocked}
           onClose={() => setShowFilters(false)}
-          onChanged={load}
+          onChanged={reload}
         />
       )}
     </div>

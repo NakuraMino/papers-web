@@ -46,6 +46,7 @@ export const api = {
   unlock: (code) => post('/api/unlock', { code }, { code }),
   conferences: () => j('/api/conferences'),
   next: (conf) => j(`/api/${conf}/next`),
+  queue: (conf, limit = 8) => j(`/api/${conf}/queue?limit=${limit}`),
   stats: (conf) => j(`/api/${conf}/stats`),
   decide: (conf, paperId, decision) => post(`/api/${conf}/decision`, { paperId, decision }),
   undo: (conf) => post(`/api/${conf}/undo`, {}),

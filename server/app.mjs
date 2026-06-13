@@ -5,6 +5,7 @@
 //
 //   GET  /api/conferences            -> list loaded conferences + stats
 //   GET  /api/:conf/next             -> next undecided paper + stats
+//   GET  /api/:conf/queue?limit=     -> next N undecided papers (client prefetch buffer)
 //   GET  /api/:conf/stats            -> counts
 //   POST /api/:conf/decision         -> { paperId, decision: like|dislike|skip }
 //   POST /api/:conf/undo             -> revert the most recent decision
@@ -17,7 +18,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import {
-  conferenceCatalog, getConference, stats, nextUndecided,
+  conferenceCatalog, getConference, stats, nextUndecided, nextUndecidedBatch,
   recordDecision, undoLast, setDecisionOrClear, setRead, listPapers,
   allDecisionsForExport, loadedConferences, getFilters, setFilters,
 } from './db.mjs';
@@ -85,6 +86,14 @@ confRouter.get('/stats', wrap(async (req, res) => res.json(await stats(req.param
 confRouter.get('/next', wrap(async (req, res) => {
   const { conf } = req.params;
   res.json({ paper: await nextUndecided(conf), stats: await stats(conf) });
+}));
+
+// A small batch of upcoming papers so the client can buffer ahead and swipe
+// without a round-trip per card.
+confRouter.get('/queue', wrap(async (req, res) => {
+  const { conf } = req.params;
+  const n = Math.min(Math.max(parseInt(req.query.limit, 10) || 8, 1), 25);
+  res.json({ papers: await nextUndecidedBatch(conf, n), stats: await stats(conf) });
 }));
 
 confRouter.post('/decision', requireEdit, wrap(async (req, res) => {

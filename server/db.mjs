@@ -191,6 +191,22 @@ export async function nextUndecided(conference) {
   return null;
 }
 
+// The next `limit` undecided, unfiltered papers in order. Lets the client buffer
+// a few cards ahead so swipes feel instant instead of waiting for a round-trip.
+export async function nextUndecidedBatch(conference, limit = 8) {
+  const { list } = corpusOf(conference);
+  const decided = await decisionsMap(conference);
+  const terms = await lowerFilters(conference);
+  const out = [];
+  for (const p of list) {
+    if (decided.has(p.id)) continue;
+    if (matchesFilters(conference, p.id, terms)) continue;
+    out.push(p);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 export async function recordDecision(conference, paperId, decision, note = '') {
   const id = String(paperId);
   if (!corpusOf(conference).byId.has(id)) throw new Error(`unknown paper: ${conference}/${id}`);
