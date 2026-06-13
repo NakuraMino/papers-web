@@ -24,6 +24,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('paperswiper.theme', theme);
+    // keep the OS/browser chrome (PWA status bar, Android tab color) in sync with the theme
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#0b0b0c');
   }, [theme]);
 
   useEffect(() => {
